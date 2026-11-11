@@ -1,0 +1,1050 @@
+"This directive allows results to be deferred during execution"
+directive @defer(
+    "Deferred behaviour is controlled by this argument"
+    if: Boolean! = true,
+    "A unique label that represents the fragment being deferred"
+    label: String
+  ) on FRAGMENT_SPREAD | INLINE_FRAGMENT
+
+"Marks the field, argument, input field or enum value as deprecated"
+directive @deprecated(
+    "The reason for the deprecation"
+    reason: String! = "No longer supported"
+  ) on FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM_VALUE | INPUT_FIELD_DEFINITION
+
+"This directive disables error propagation when a non nullable field returns null for the given operation."
+directive @experimental_disableErrorPropagation on QUERY | MUTATION | SUBSCRIPTION
+
+"Directs the executor to include this field or fragment only when the `if` argument is true"
+directive @include(
+    "Included when true."
+    if: Boolean!
+  ) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+
+"Indicates an Input Object is a OneOf Input Object."
+directive @oneOf on INPUT_OBJECT
+
+"Directs the executor to skip this field or fragment when the `if` argument is true."
+directive @skip(
+    "Skipped when true."
+    if: Boolean!
+  ) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+
+"Exposes a URL that specifies the behaviour of this scalar."
+directive @specifiedBy(
+    "The URL that specifies the behaviour of this scalar."
+    url: String!
+  ) on SCALAR
+
+"""
+ One source record rendered as an exploratory card — never a content
+ copy. state is String DELIBERATELY: the lifecycle vocabulary is
+ per-source-type heterogeneous (LOST_FOUND posts carry
+ ACTIVE/RESOLVED/FOUND, events ACTIVE/CANCELLED/POSTPONED, jobs OPEN,
+ listings ACTIVE/INACTIVE — and the urgent-alert cards carry none at
+ all, measured from the assembler: the alert mapping passes null) — a
+ single enum would lie about one shared vocabulary that does not
+ exist; String is the honest type for the heterogeneous per-source
+ state, exactly as the shared DiscoveryCardView carries it. updatedAt
+ is the ISO-8601 instant (java.time.Instant.toString) — the GraphQL
+ spec has no temporal scalar and this surface adds none (zero new
+ dependencies on the locked Boot 4.1.1 → spring-graphql 2.0.5 →
+ graphql-java 25.0 chain; a typed DateTime scalar stays a deliberate
+ future decision behind a measured need, never a silent drift — the
+ same discipline that keeps every version in this tree pinned).
+ scopeLocationId is null for user-scoped sources; paid is null for
+ organic (the disclosure contract: null never masquerades as either
+ answer, AC-20-08); reason carries the human-explainable appearance
+ reason (never empty on the FOR_YOU rail, AC-20-06/AC-20-11).
+"""
+type DiscoveryCard {
+  paid: Boolean
+  reason: String
+  scopeLocationId: ID
+  snippet: String
+  sourceId: ID!
+  sourceType: DiscoverySource!
+  state: String
+  title: String!
+  updatedAt: String!
+}
+
+"""
+ =====================================================================
+ Phase 6 — the first composite journey's projection types (the
+ corrected plan §11-Phase-6 + the inventory #599 §7 stage 4). Every
+ type below is a BOUNDED READ PROJECTION of an owning module's
+ contract (the plan's own words: "add bounded read projections") —
+ the GraphQL surface owns no business rule (REST and GraphQL invoke
+ the same use cases through the same declared SPIs, #599 §8).
+ =====================================================================
+ One discovery rail as rendered — the discovery projection's own
+ contract (Wave D-1): the rail, its eligible cards (deduped by the
+ (sourceType, sourceId) pair, bounded at the assembler's home card
+ limit), and the source-side total so "عرض الكل" (the REST topic
+ page, UJ-261) can state the real size before the user commits to
+ navigating. totalEligible is a scoped per-rail count — Int's signed
+ 32-bit ceiling (2,147,483,647) is the documented bound, the exact
+ priceCents house pattern.
+"""
+type DiscoveryRow {
+  cards: [DiscoveryCard!]!
+  row: DiscoveryRail!
+  totalEligible: Int!
+}
+
+type Mutation {
+  createService(input: ServiceInput!): Service!
+  createStoreProduct(input: StoreProductCreateInput!): StoreProduct!
+  createStoreProductVariant(input: StoreProductVariantCreateInput!, productId: ID!): StoreProductVariant!
+  publishStoreProduct(id: ID!): StoreProduct!
+  replaceStoreProductAttributes(id: ID!, values: [StoreProductAttributeValueInput!]!): [StoreProductAttributeValue!]!
+  updateStoreProduct(id: ID!, input: StoreProductUpdateInput!): StoreProduct!
+}
+
+"""
+ The feed node — the REST feed view's own field set (the same-journey
+ comparison #599's gate demands: the home composite serves the SAME
+ data the REST feed serves, nothing narrower, nothing wider). The
+ author stays an opaque id (the identity seams own resolution —
+ GraphQL never widens it); category/status/lostFoundState are the
+ domain's closed vocabularies mirrored here as typed enums (the SDL
+ is the typed boundary — the conversion lives in the surface's
+ mapper, and the schema compatibility gate guards the values);
+ lostFoundState rides ONLY LOST_FOUND posts (null for every other
+ category — V171's own documented shape); reactionsCount is Int! with
+ the documented 32-bit ceiling (a live grouped count, the priceCents
+ pattern); media are the presigned display URLs (thumbUrl null until
+ background processing has run — the L28 contract); the instants are
+ ISO-8601 strings (the same deliberate no-new-scalar decision as
+ DiscoveryCard.updatedAt).
+"""
+type NeighborhoodPost {
+  authorId: ID!
+  body: String!
+  category: PostCategory!
+  createdAt: String!
+  declaredCommercial: Boolean!
+  id: ID!
+  locationId: ID!
+  lostFoundState: LostFoundState
+  media: [NeighborhoodPostMedia!]!
+  reactedByMe: Boolean!
+  reactionsCount: Int!
+  status: PostStatus!
+  title: String!
+  updatedAt: String!
+}
+
+type NeighborhoodPostConnection {
+  edges: [NeighborhoodPostEdge]
+  pageInfo: PageInfo!
+}
+
+type NeighborhoodPostEdge {
+  cursor: String!
+  node: NeighborhoodPost!
+}
+
+"""
+ One photo of a feed post as the home read carries it — the L48 media
+ projection: a display URL pair and the position order; the object
+ key, the status and every storage fact stay the media module's
+ private concern. url is the time-limited presigned GET the media
+ module computed for THIS read (always present); thumbUrl is null
+ until background processing has run (clients fall back to url).
+"""
+type NeighborhoodPostMedia {
+  contentType: String
+  mediaId: ID!
+  position: Int!
+  thumbUrl: String
+  url: String!
+}
+
+"""
+ Relay PageInfo — Saleor's exact field set. Hand-declared once here
+ for the UserCountableConnection (the runtime-generated connections
+ declare the same field set, so one PageInfo serves both).
+"""
+type PageInfo {
+  "When paginating forwards, the cursor to continue."
+  endCursor: String
+  "When paginating forwards, are there more items?"
+  hasNextPage: Boolean!
+  "When paginating backwards, are there more items?"
+  hasPreviousPage: Boolean!
+  "When paginating backwards, the cursor to continue."
+  startCursor: String
+}
+
+"""
+ =====================================================================
+ Phase 7 — the composite post/source detail journey's comment
+ projection (the corrected plan §11-Phase-7 + the inventory #599 §5
+ item 3). The same bounded read projection discipline as every type
+ above: the GraphQL surface owns no business rule — the REST comments
+ read and the GraphQL comments leg invoke the SAME use case through
+ the SAME declared SPI (#599 §8).
+ =====================================================================
+ One comment of a post as the detail journey carries it — the REST
+ comments read view's own field set (the same-journey comparison the
+ inventory's acceptance gate demands: nothing narrower, nothing
+ wider). The author stays an opaque id (the identity seams own
+ resolution — GraphQL never widens it); the comment never
+ re-projects its post's own state (the comment is reached through the
+ post gate); the instants are ISO-8601 strings (the same deliberate
+ no-new-scalar decision as NeighborhoodPost.createdAt).
+"""
+type PostComment {
+  authorId: ID!
+  body: String!
+  createdAt: String!
+  id: ID!
+  postId: ID!
+  updatedAt: String!
+}
+
+type PostCommentConnection {
+  edges: [PostCommentEdge]
+  pageInfo: PageInfo!
+}
+
+type PostCommentEdge {
+  cursor: String!
+  node: PostComment!
+}
+
+type Query {
+  """
+   The caller's home discovery rails — the deterministic §1.4
+   assembler's bounded projection (each rail ≤ 10 cards; the full
+   filtered list lives on the REST topic page GET /discovery/rows/
+   {row}, UJ-261). The membership IS the scope: no active membership
+   answers the honest EMPTY list, never a widened one (AC-02-02); an
+   ineligible/quiet rail is ABSENT entirely (AC-20-07 — the empty
+   state is the client's honest rendering of absence, never a
+   fabricated placeholder card). No arguments: the server owns
+   eligibility, ordering and geo scope (#599 §8) — there is no
+   client-side scope or filter axis on the home read.
+  """
+  discovery: [DiscoveryRow!]!
+  """
+   =================================================================
+   Saleor Users domain — P1 wave (the canonical plan §5-P1: "retained
+   Dashboard user/profile and permission operations using existing
+   identity and console owners"). Root names, argument shapes and the
+   connection envelope are the pinned Saleor 3.23.43 wire contract
+   (saleor/graphql/schema.graphql, blob b8fa0dd8 — the measured roots
+   me/user/staffUsers); the platform's identity owner remains the
+   single source of truth behind them. The GLOBAL IDs on this surface
+   are the typed Relay-style codec's (SaleorGlobalIdCodec): opaque
+   base64("User:<uuid>") values — never raw UUIDs. The bounded User
+   type closure and the permission mapping are recorded in the
+   divergence registry; a declared-but-fake field would be the
+   violation, not the absence.
+   =================================================================
+   "Return the currently authenticated user." — any authenticated
+   caller's OWN profile read (the JWT subject through the identity
+   owner). Nullable exactly as Saleor's: a subject with no users row
+   (login before the REST /me bootstrap) answers null — the honest
+   absence, never a fabricated profile.
+  """
+  me: User
+  """
+   The connection is NULLABLE deliberately (unlike services): the
+   feed's owning use case answers an explicit denial — the REST
+   feed's own 403 (no active membership, G-N3) — and on a NON-NULL
+   root field a GraphQL field error propagates the null up to the
+   root, destroying the WHOLE composite's data (discovery included —
+   measured against the GraphQL spec's null propagation; strictly
+   worse than the REST journey it replaces). The nullable envelope
+   carries the owner's denial exactly the way the platform's error
+   contract intends: the field resolves to null WITH one AUTHZ-
+   classified error in errors[], while discovery still resolves its
+   honest empty list — the composite never bends either owner's
+   rules and never destroys the sibling section. The connection
+   types (NeighborhoodPostConnection/Edge/PageInfo) are generated at
+   startup by the same ConnectionTypeDefinitionConfigurer — never
+   hand-declared here.
+  """
+  neighborhoodFeed(after: String, first: Int): NeighborhoodPostConnection
+  """
+   The id is NOT permission (the inventory §8: «لا يعتبر المعرّف
+   إذنًا»): the owner re-validates the post's CURRENT state at open
+   time (an unknown, hidden or deleted post answers the honest 404 —
+   never trust the discovery card that pointed here) and the caller's
+   active membership in the post's OWN neighborhood (403 otherwise).
+   The field is NULLABLE deliberately (the neighborhoodFeed
+   precedent): the denial resolves this field to null WITH one
+   classified error in errors[] while the sibling comments field (or
+   any other section of the same document) still resolves — the
+   composite never destroys the sibling section and never bends the
+   owner's rules. The answer is the feed node's own type — the
+   same-journey field set (stored facts + caller-scoped reaction
+   facts + presigned media), nothing narrower, nothing wider.
+  """
+  post(id: ID!): NeighborhoodPost
+  """
+   The post-detail journey's comments leg — the same bounded read the
+   REST comments endpoint serves (GET /api/v1/posts/{postId}/comments):
+   the post's comments on the owner's complete sort key createdAt ASC,
+   id ASC (the owner pins the order — no shaky page boundaries),
+   reached through the SAME post gate first (an unknown, hidden or
+   deleted post answers the honest 404 — a hidden post's comments are
+   absent exactly as the post itself is), then the membership gate in
+   the post's OWN neighborhood (403; ANY verification state reads).
+   The relay envelope is the Phase-1 connection contract the services
+   and neighborhoodFeed fields established: forward-only first/after
+   with the server's configured default page size and hard cap
+   (marketplace.graphql.pagination.*) and no SDL literal default (the
+   single-source rule). The connection is NULLABLE for the same
+   field-level denial contract as post above. The connection types
+   (PostCommentConnection/Edge/PageInfo) are generated at startup by
+   the same ConnectionTypeDefinitionConfigurer — never hand-declared
+   here.
+  """
+  postComments(after: String, first: Int, postId: ID!): PostCommentConnection
+  service(id: ID!): Service
+  """
+   Forward-only keyset connection over ACTIVE catalog listings, ordered
+   by createdAt DESC, id DESC. Cursors are opaque framework-generated
+   positions and may be reused with a different first value because they
+   identify a row's sort key, not an absolute offset. The configured
+   default and hard maximum are owned by marketplace.graphql.pagination;
+   do not add an SDL literal default that shadows that configuration.
+  """
+  services(after: String, first: Int): ServiceConnection!
+  """
+   "List of the shop's staff users." — the Saleor staff list with its
+   countable-connection envelope (edges/pageInfo/totalCount, byte-shape
+   from the pinned schema). FORWARD-ONLY keyset paging on this first
+   slice: first/after ride the platform's ScrollPosition keyset
+   contract (the storeProducts/services precedent — cursors identify a
+   row's sort key (email|createdAt|updatedAt, id), never an absolute
+   offset); before/last stay declared (the exact Saleor argument shape)
+   but answer an explicit classified error until a backward scroll
+   exists — a recorded, tested boundary, not a silent no-op. filter is
+   likewise the declared wire shape with an explicit not-yet-supported
+   error. Sort vocabulary is Saleor's full UserSortField enum; the
+   fields with an owning indexed column (EMAIL/CREATED_AT/
+   LAST_MODIFIED_AT) execute as real keyset sorts, the rest answer the
+   same explicit error. MANAGE_STAFF on Saleor → ADMIN here.
+  """
+  staffUsers(
+    "Return the elements in the list that come after the specified cursor."
+    after: String,
+    "Return the elements in the list that come before the specified cursor."
+    before: String,
+    "Filtering options for staff users."
+    filter: StaffUserInput,
+    "Retrieve the first n elements from the list."
+    first: Int,
+    "Retrieve the last n elements from the list."
+    last: Int,
+    "Sort staff users."
+    sortBy: UserSortingInput
+  ): UserCountableConnection
+  """
+   Dashboard's provider-owned catalog surface. This is a journey contract, not
+   a mirror of the catalog tables; the fetchers delegate to ProductAdminSpi.
+  """
+  storeProduct(id: ID!): StoreProduct
+  storeProductAttributeValues(productId: ID!): [StoreProductAttributeValue!]!
+  storeProductTypes: [StoreProductType!]!
+  storeProductVariantAttributeValues(variantId: ID!): [StoreProductAttributeValue!]!
+  storeProductVariants(productId: ID!): [StoreProductVariant!]!
+  """
+   Forward-only keyset connection. Filter fields are limited to current domain
+   attributes; the sort vocabulary is an allow-list backed by non-null indexed
+   fields. Keep filter and sortBy identical when following an after cursor.
+  """
+  storeProducts(after: String, filter: StoreProductFilterInput, first: Int, sortBy: StoreProductSortInput): StoreProductConnection!
+  """
+   "Look up a user by ID or email address." — the Saleor wire shape
+   carries id/email/externalReference; on this platform externalReference
+   maps to the identity owner's subject (the OIDC subject IS the external
+   account identifier of record — the same column the JWT sub joins).
+   Requires one of MANAGE_STAFF/MANAGE_USERS/MANAGE_ORDERS on Saleor —
+   enforced server-side as the platform's ADMIN capability at the
+   identity use-case boundary (the RBAC mapping row of the divergence
+   registry), never as a UI route guard.
+  """
+  user(email: String, externalReference: String, id: ID): User
+}
+
+type Service {
+  category: String!
+  currency: String!
+  description: String
+  id: ID!
+  name: String!
+  price: Float!
+  status: ServiceStatus!
+}
+
+type ServiceConnection {
+  edges: [ServiceEdge]
+  pageInfo: PageInfo!
+}
+
+type ServiceEdge {
+  cursor: String!
+  node: Service!
+}
+
+"""
+ The store catalog contract consumed by marketplace-admin. Monetary writes and
+ reads use canonical decimal strings in minor units to preserve the full Java
+ long precision; GraphQL Int is only signed 32-bit and Float is not exact money.
+"""
+type StoreProduct {
+  currency: String!
+  description: String
+  id: ID!
+  priceMinor: String!
+  productTypeId: ID
+  providerId: ID!
+  status: StoreProductStatus!
+  storeCategoryCode: String!
+  title: String!
+}
+
+type StoreProductAttributeOption {
+  code: String!
+  id: ID!
+  nameAr: String
+  nameEn: String
+  position: Int!
+}
+
+type StoreProductAttributeValue {
+  assignmentId: ID!
+  booleanValue: Boolean
+  numberValue: String
+  optionId: ID
+  textValue: String
+}
+
+type StoreProductConnection {
+  edges: [StoreProductEdge]
+  pageInfo: PageInfo!
+}
+
+type StoreProductEdge {
+  cursor: String!
+  node: StoreProduct!
+}
+
+type StoreProductType {
+  attributes: [StoreProductTypeAttribute!]!
+  code: String!
+  description: String
+  id: ID!
+  nameAr: String
+  nameEn: String
+}
+
+type StoreProductTypeAttribute {
+  assignmentId: ID!
+  attributeDefinitionId: ID!
+  code: String!
+  nameAr: String
+  nameEn: String
+  options: [StoreProductAttributeOption!]!
+  position: Int!
+  required: Boolean!
+  scope: StoreProductAttributeScope!
+  valueType: StoreProductAttributeValueType!
+}
+
+type StoreProductVariant {
+  currency: String!
+  id: ID!
+  name: String
+  priceMinor: String!
+  productId: ID!
+  providerId: ID!
+  reservedQuantity: Int!
+  sku: String!
+  status: StoreProductVariantStatus!
+  stockQuantity: Int!
+}
+
+"""
+ The bounded User projection — see the block comment above for the
+ closure policy. id is the typed global ID; isStaff is the platform's
+ staff concept (the ADMIN role); isActive is the honest login-identity
+ fact the owner owns today (a pseudonymized account is not active);
+ userPermissions is the server-enforced capability mapping
+ (SaleorPermissionCatalog — the platform RBAC rendered in Saleor's
+ permission vocabulary, the divergence-registry RBAC row).
+"""
+type User {
+  "The date and time when the account was created (ISO-8601)."
+  dateJoined: String
+  "The email address of the user (null when the account has none)."
+  email: String
+  "The ID of the user — typed global ID (opaque, never a raw UUID)."
+  id: ID!
+  "Determine if the user is active (a live login identity exists)."
+  isActive: Boolean!
+  "Determine if the user is a staff admin (the platform ADMIN role)."
+  isStaff: Boolean!
+  "The account's effective server-side permissions."
+  userPermissions: [UserPermission!]!
+}
+
+"""
+ Saleor's connection envelope for countable user lists — declared
+ (not runtime-generated) so the exact Saleor shape stands, including
+ totalCount. Spring's ConnectionTypeDefinitionConfigurer skips
+ already-declared connection types (measured in the 2.0.5 source —
+ the getTypeOrNull filter), so this declaration wins and the generated
+ connections elsewhere are untouched.
+"""
+type UserCountableConnection {
+  edges: [UserCountableEdge!]!
+  "Pagination data for this connection."
+  pageInfo: PageInfo!
+  "A total count of items in the collection."
+  totalCount: Int
+}
+
+type UserCountableEdge {
+  "A cursor for use in pagination (the row's keyset sort key)."
+  cursor: String!
+  "The item at the end of the edge."
+  node: User!
+}
+
+"""
+ Saleor's UserPermission shape (minus sourcePermissionGroups — the
+ permission-group workbench is a later P1 slice with no owning model
+ yet; the absence is recorded, not faked).
+"""
+type UserPermission {
+  "Internal code for permission."
+  code: PermissionEnum!
+  "Describe action(s) allowed to do by permission."
+  name: String!
+}
+
+"""
+ The closed vocabulary of the home rails — the domain
+ DiscoveryRowType mirrored (the render order §1.4 fixed: the enum's
+ own numbering; URGENT_ALERTS above the ordinary rails, never ranked
+ by popularity or a learned ordering, AC-20-06). The schema
+ compatibility gate guards these values against unreviewed removals.
+"""
+enum DiscoveryRail {
+  EVENTS_AND_OPPORTUNITIES
+  FOLLOWED_SOURCES
+  FOR_YOU
+  LOST_FOUND
+  NEIGHBORHOOD_RECOMMENDATIONS
+  URGENT_ALERTS
+}
+
+"""
+ The card's source-type vocabulary — the projection's closed five
+ (a card NEVER carries a copy of its source: every card resolves
+ back to its source record — the projection contract
+ sourceId + sourceType + version/updatedAt, re-validated at open
+ time by the owning module, AC-20-10).
+"""
+enum DiscoverySource {
+  JOB
+  NEIGHBORHOOD_EVENT
+  NEIGHBORHOOD_POST
+  PROVIDER_LISTING
+  URGENT_ALERT
+}
+
+enum ErrorDetail {
+  """
+  The deadline expired before the operation could complete.
+  
+  For operations that change the state of the system, this error
+  may be returned even if the operation has completed successfully.
+  For example, a successful response from a server could have been
+  delayed long enough for the deadline to expire.
+  
+  HTTP Mapping: 504 Gateway Timeout
+  Error Type: UNAVAILABLE
+  """
+  DEADLINE_EXCEEDED
+  """
+  The server detected that the client is exhibiting a behavior that
+  might be generating excessive load.
+  
+  HTTP Mapping: 420 Enhance Your Calm
+  Error Type: UNAVAILABLE
+  """
+  ENHANCE_YOUR_CALM
+  """
+  The requested field is not found in the schema.
+  
+  This differs from `NOT_FOUND` in that `NOT_FOUND` should be used when a
+  query is valid, but is unable to return a result (if, for example, a
+  specific video id doesn't exist). `FIELD_NOT_FOUND` is intended to be
+  returned by the server to signify that the requested field is not known to exist.
+  This may be returned in lieu of failing the entire query.
+  See also `PERMISSION_DENIED` for cases where the
+  requested field is invalid only for the given user or class of users.
+  
+  HTTP Mapping: 404 Not Found
+  Error Type: BAD_REQUEST
+  """
+  FIELD_NOT_FOUND
+  """
+  The client specified an invalid argument.
+  
+  Note that this differs from `FAILED_PRECONDITION`.
+  `INVALID_ARGUMENT` indicates arguments that are problematic
+  regardless of the state of the system (e.g., a malformed file name).
+  
+  HTTP Mapping: 400 Bad Request
+  Error Type: BAD_REQUEST
+  """
+  INVALID_ARGUMENT
+  """
+  The provided cursor is not valid.
+  
+  The most common usage for this error is when a client is paginating
+  through a list that uses stateful cursors. In that case, the provided
+  cursor may be expired.
+  
+  HTTP Mapping: 404 Not Found
+  Error Type: NOT_FOUND
+  """
+  INVALID_CURSOR
+  """
+  Unable to perform operation because a required resource is missing.
+  
+  Example: Client is attempting to refresh a list, but the specified
+  list is expired. This requires an action by the client to get a new list.
+  
+  If the user is simply trying GET a resource that is not found,
+  use the NOT_FOUND error type. FAILED_PRECONDITION.MISSING_RESOURCE
+  is to be used particularly when the user is performing an operation
+  that requires a particular resource to exist.
+  
+  HTTP Mapping: 400 Bad Request or 500 Internal Server Error
+  Error Type: FAILED_PRECONDITION
+  """
+  MISSING_RESOURCE
+  """
+  Service Error.
+  
+  There is a problem with an upstream service.
+  
+  This may be returned if a gateway receives an unknown error from a service
+  or if a service is unreachable.
+  If a request times out which waiting on a response from a service,
+  `DEADLINE_EXCEEDED` may be returned instead.
+  If a service returns a more specific error Type, the specific error Type may
+  be returned instead.
+  
+  HTTP Mapping: 502 Bad Gateway
+  Error Type: UNAVAILABLE
+  """
+  SERVICE_ERROR
+  """
+  Request failed due to network errors.
+  
+  HTTP Mapping: 503 Unavailable
+  Error Type: UNAVAILABLE
+  """
+  TCP_FAILURE
+  """
+  Request throttled based on server concurrency limits.
+  
+  HTTP Mapping: 503 Unavailable
+  Error Type: UNAVAILABLE
+  """
+  THROTTLED_CONCURRENCY
+  """
+  Request throttled based on server CPU limits
+  
+  HTTP Mapping: 503 Unavailable.
+  Error Type: UNAVAILABLE
+  """
+  THROTTLED_CPU
+  """
+  The server detected that the client is exhibiting a behavior that
+  might be generating excessive load.
+  
+  HTTP Mapping: 429 Too Many Requests
+  Error Type: UNAVAILABLE
+  """
+  TOO_MANY_REQUESTS
+  """
+  The operation is not implemented or is not currently supported/enabled.
+  
+  HTTP Mapping: 501 Not Implemented
+  Error Type: BAD_REQUEST
+  """
+  UNIMPLEMENTED
+  """
+  Unknown error.
+  
+  This error should only be returned when no other error detail applies.
+  If a client sees an unknown errorDetail, it will be interpreted as UNKNOWN.
+  
+  HTTP Mapping: 500 Internal Server Error
+  """
+  UNKNOWN
+}
+
+enum ErrorType {
+  """
+  Bad Request.
+  
+  There is a problem with the request.
+  Retrying the same request is not likely to succeed.
+  An example would be a query or argument that cannot be deserialized.
+  
+  HTTP Mapping: 400 Bad Request
+  """
+  BAD_REQUEST
+  """
+  The operation was rejected because the system is not in a state
+  required for the operation's execution.  For example, the directory
+  to be deleted is non-empty, an rmdir operation is applied to
+  a non-directory, etc.
+  
+  Service implementers can use the following guidelines to decide
+  between `FAILED_PRECONDITION` and `UNAVAILABLE`:
+  
+  - Use `UNAVAILABLE` if the client can retry just the failing call.
+  - Use `FAILED_PRECONDITION` if the client should not retry until
+  the system state has been explicitly fixed.  E.g., if an "rmdir"
+       fails because the directory is non-empty, `FAILED_PRECONDITION`
+  should be returned since the client should not retry unless
+  the files are deleted from the directory.
+  
+  HTTP Mapping: 400 Bad Request or 500 Internal Server Error
+  """
+  FAILED_PRECONDITION
+  """
+  Internal error.
+  
+  An unexpected internal error was encountered. This means that some
+  invariants expected by the underlying system have been broken.
+  This error code is reserved for serious errors.
+  
+  HTTP Mapping: 500 Internal Server Error
+  """
+  INTERNAL
+  """
+  The requested entity was not found.
+  
+  This could apply to a resource that has never existed (e.g. bad resource id),
+  or a resource that no longer exists (e.g. cache expired.)
+  
+  Note to server developers: if a request is denied for an entire class
+  of users, such as gradual feature rollout or undocumented allowlist,
+  `NOT_FOUND` may be used. If a request is denied for some users within
+  a class of users, such as user-based access control, `PERMISSION_DENIED`
+  must be used.
+  
+  HTTP Mapping: 404 Not Found
+  """
+  NOT_FOUND
+  """
+  The caller does not have permission to execute the specified
+  operation.
+  
+  `PERMISSION_DENIED` must not be used for rejections
+  caused by exhausting some resource or quota.
+  `PERMISSION_DENIED` must not be used if the caller
+  cannot be identified (use `UNAUTHENTICATED`
+  instead for those errors).
+  
+  This error Type does not imply the
+  request is valid or the requested entity exists or satisfies
+  other pre-conditions.
+  
+  HTTP Mapping: 403 Forbidden
+  """
+  PERMISSION_DENIED
+  """
+  The request does not have valid authentication credentials.
+  
+  This is intended to be returned only for routes that require
+  authentication.
+  
+  HTTP Mapping: 401 Unauthorized
+  """
+  UNAUTHENTICATED
+  """
+  Currently Unavailable.
+  
+  The service is currently unavailable.  This is most likely a
+  transient condition, which can be corrected by retrying with
+  a backoff.
+  
+  HTTP Mapping: 503 Unavailable
+  """
+  UNAVAILABLE
+  """
+  Unknown error.
+  
+  For example, this error may be returned when
+  an error code received from another address space belongs to
+  an error space that is not known in this address space.  Also
+  errors raised by APIs that do not return enough error information
+  may be converted to this error.
+  
+  If a client sees an unknown errorType, it will be interpreted as UNKNOWN.
+  Unknown errors MUST NOT trigger any special behavior. These MAY be treated
+  by an implementation as being equivalent to INTERNAL.
+  
+  When possible, a more specific error should be provided.
+  
+  HTTP Mapping: 520 Unknown Error
+  """
+  UNKNOWN
+}
+
+"""
+ A LOST_FOUND post's lifecycle state — the domain LostFoundState
+ mirrored (present only on LOST_FOUND posts; a resolved or recovered
+ report never masquerades as an active one anywhere, JT-20).
+"""
+enum LostFoundState {
+  ACTIVE
+  FOUND
+  RESOLVED
+}
+
+enum OrderDirection {
+  "Specifies an ascending sort order."
+  ASC
+  "Specifies a descending sort order."
+  DESC
+}
+
+"""
+ The full Saleor 3.23.43 permission vocabulary — the closed wire enum
+ the platform renders its RBAC capabilities into. Values the platform
+ does not yet grant any role stay inert SDL vocabulary (never emitted);
+ the granted subset is the tested SaleorPermissionCatalog mapping.
+"""
+enum PermissionEnum {
+  HANDLE_CHECKOUTS
+  HANDLE_PAYMENTS
+  HANDLE_TAXES
+  IMPERSONATE_USER
+  MANAGE_APPS
+  MANAGE_CHANNELS
+  MANAGE_CHECKOUTS
+  MANAGE_CUSTOMER_TYPES_AND_ATTRIBUTES
+  MANAGE_DISCOUNTS
+  MANAGE_GIFT_CARD
+  MANAGE_MENUS
+  MANAGE_OBSERVABILITY @deprecated(reason : "The observability feature is no longer supported. This permission will be removed in Saleor 3.24.")
+  MANAGE_ORDERS
+  MANAGE_ORDERS_IMPORT
+  MANAGE_PAGES
+  MANAGE_PAGE_TYPES_AND_ATTRIBUTES
+  MANAGE_PLUGINS
+  MANAGE_PRODUCTS
+  MANAGE_PRODUCT_TYPES_AND_ATTRIBUTES
+  MANAGE_SETTINGS
+  MANAGE_SHIPPING
+  MANAGE_STAFF
+  MANAGE_TAXES
+  MANAGE_TRANSLATIONS
+  MANAGE_USERS
+}
+
+"""
+ The feed post's category — the domain PostCategory mirrored (the
+ feed's one filter axis on the REST side; the home read serves the
+ whole feed, so this type carries no argument).
+"""
+enum PostCategory {
+  CLASSIFIED
+  GENERAL
+  LOST_FOUND
+  QUESTION
+  RECOMMENDATION
+  REQUEST
+}
+
+"""
+ The feed post's moderation status — the domain PostStatus mirrored.
+ The feed read answers VISIBLE only (a hidden post is absent — the
+ honest 404/absence the REST feed already carries); the full
+ vocabulary stays declared so the contract is the domain's, not a
+ subset invented by the projection.
+"""
+enum PostStatus {
+  HIDDEN_BY_MODERATOR
+  VISIBLE
+}
+
+enum ServiceStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum StaffMemberStatus {
+  "User account has been activated."
+  ACTIVE
+  "User account has not been activated yet."
+  DEACTIVATED
+}
+
+enum StoreProductAttributeScope {
+  PRODUCT
+  VARIANT
+  VARIANT_SELECTION
+}
+
+enum StoreProductAttributeValueType {
+  BOOLEAN
+  CHOICE
+  NUMBER
+  TEXT
+}
+
+enum StoreProductSortDirection {
+  ASC
+  DESC
+}
+
+enum StoreProductSortField {
+  CREATED_AT
+  PRICE_MINOR
+  STATUS
+  TITLE
+}
+
+enum StoreProductStatus {
+  ACTIVE
+  ARCHIVED
+  DRAFT
+  SUSPENDED
+}
+
+enum StoreProductVariantStatus {
+  ACTIVE
+  ARCHIVED
+  SUSPENDED
+}
+
+enum UserSortField {
+  "Sort users by created at."
+  CREATED_AT
+  "Sort users by email."
+  EMAIL
+  "Sort users by first name."
+  FIRST_NAME
+  "Sort users by last modified at."
+  LAST_MODIFIED_AT
+  "Sort users by last name."
+  LAST_NAME
+  "Sort users by order count."
+  ORDER_COUNT
+  "Sort users by rank. Note: This option is available only with the `search` filter."
+  RANK
+}
+
+"""
+ Input speaks integer cents — the domain money language of every write
+ surface (REST CreateListingRequest.priceCents, V2 price_cents >= 0,
+ BookingInfo). DGS's DefaultInputObjectMapper binds input keys to Java
+ record components BY NAME, so the field name must equal the
+ ServiceInput.priceCents record component (the same by-name contract the
+ spring-graphql binder enforced before the Phase-2 migration). (The read
+ side keeps display units: Service.price — major units via
+ ServiceMapper.) Int is a signed 32-bit scalar per the GraphQL spec —
+ the explicit shared ceiling 2,147,483,647 is declared in ServiceInput
+ via @Max and enforced by the fetcher's explicit Bean Validation.
+"""
+input ServiceInput {
+  category: String!
+  description: String
+  name: String!
+  priceCents: Int!
+}
+
+"""
+ Saleor's staff-user filter input — the declared wire shape of the
+ filter argument (see staffUsers: an explicit classified error until
+ the owning query capability exists).
+"""
+input StaffUserInput {
+  ids: [ID!]
+  search: String
+  status: StaffMemberStatus
+}
+
+input StoreProductAttributeValueInput {
+  assignmentId: ID!
+  booleanValue: Boolean
+  numberValue: String
+  optionId: ID
+  textValue: String
+}
+
+"""
+ priceMinor must be a non-negative, base-10 integer string (for example "149900").
+ Domain services remain authoritative for ownership, ProductType rules and publishability.
+"""
+input StoreProductCreateInput {
+  currency: String!
+  description: String
+  priceMinor: String!
+  productTypeId: ID
+  storeCategoryCode: String!
+  title: String!
+}
+
+"""
+ Adapted to the catalog fields the platform actually owns. Prices are minor-unit
+ decimal strings to avoid GraphQL Int/Float precision loss. Bounds and PRICE_MINOR
+ sorting require currency because priceMinor values across currencies are incomparable.
+"""
+input StoreProductFilterInput {
+  currency: String
+  maxPriceMinor: String
+  minPriceMinor: String
+  productTypeId: ID
+  search: String
+  status: StoreProductStatus
+  storeCategoryCode: String
+}
+
+input StoreProductSortInput {
+  direction: StoreProductSortDirection! = DESC
+  field: StoreProductSortField! = CREATED_AT
+}
+
+input StoreProductUpdateInput {
+  description: String
+  priceMinor: String!
+  title: String!
+}
+
+input StoreProductVariantCreateInput {
+  attributeValues: [StoreProductAttributeValueInput!]!
+  name: String
+  priceMinor: String!
+  sku: String!
+}
+
+"""
+ Saleor's user sorting input and field vocabulary (full closure; the
+ subset with an owning column executes — EMAIL/CREATED_AT/
+ LAST_MODIFIED_AT — the rest answer the explicit not-supported error).
+"""
+input UserSortingInput {
+  "Specifies the direction in which to sort users."
+  direction: OrderDirection!
+  "Sort users by the selected field."
+  field: UserSortField!
+}
